@@ -43,6 +43,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OTA Customer Model
+    |--------------------------------------------------------------------------
+    |
+    | Specify the fully qualified class name of the OTA customer model used for OTA conversations
+    |
+    */
+    'ota_customer_model' => \App\Models\Customer::class,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Property Model
+    |--------------------------------------------------------------------------
+    |
+    | Specify the fully qualified class name of the Property model used for OTA conversations
+    |
+    */
+    'property_model' => \App\Models\Property::class,
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Message Notification Service
+    |--------------------------------------------------------------------------
+    |
+    | Specify the fully qualified class name of the Message Notification Service used for OTA conversations
+    |
+    */
+    'message_notification_service' => \App\Services\UserNotification\MessageNotificationService::class,
+
+    /*
+    |--------------------------------------------------------------------------
     | Broadcasting
     |--------------------------------------------------------------------------
     |

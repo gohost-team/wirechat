@@ -63,12 +63,23 @@ class Conversation extends Model
     protected $fillable = [
         'disappearing_started_at',
         'disappearing_duration',
+        'extra_conversation_id',
+        'booking_id',
+        'title',
+        'is_closed',
+        'message_count',
+        'last_message_received_at',
+        'extra_data',
+        'last_synced_at',
+        'extra_inserted_at',
+        'extra_updated_at',
     ];
 
     protected $casts = [
         'type' => ConversationType::class,
         'updated_at' => 'datetime',
         'disappearing_started_at' => 'datetime',
+        'extra_data' => 'array',
     ];
 
     public function __construct(array $attributes = [])
