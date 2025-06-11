@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Namu\WireChat\Enums\Actions;
+use Namu\WireChat\Enums\ConversationType;
 use Namu\WireChat\Enums\MessageType;
 use Namu\WireChat\Facades\WireChat;
 use Namu\WireChat\Helpers\Helper;
@@ -76,11 +77,17 @@ class Message extends Model
         'reply_id',
         'type',
         'kept_at',
+        'extra_message_id',
+        'inquiry_data',
+        'extra_sender',
+        'extra_inserted_at',
+        'extra_updated_at',
     ];
 
     protected $casts = [
         'type' => MessageType::class,
         'kept_at' => 'datetime',
+        'inquiry_data' => 'array',
     ];
 
     public function __construct(array $attributes = [])
@@ -116,7 +123,17 @@ class Message extends Model
     protected static function booted()
     {
         // Add scope if authenticated
-        static::addGlobalScope(WithoutRemovedMessages::class);
+        // static::addGlobalScope(WithoutRemovedMessages::class);
+
+        // listen to created
+        static::created(function ($message) {
+            if ($message->conversation->type === ConversationType::OTA) {
+                app(config('wirechat.message_notification_service'))->createNotification('notifications.message_received', [
+                    'conversation' => $message->conversation,
+                    'message' => $message,
+                ]);
+            }
+        });
 
         // listen to deleted
         static::deleted(function ($message) {
@@ -242,7 +259,6 @@ class Message extends Model
         // If conversation is self, then delete permanently directly
         if ($conversation->isSelf()) {
             return $this->forceDelete();
-
         }
 
         // Try to create an action
@@ -297,7 +313,6 @@ class Message extends Model
 
             $message->forceDelete();
         }
-
     }
 
     /**

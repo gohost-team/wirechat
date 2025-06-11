@@ -2,6 +2,7 @@
 
 namespace Namu\WireChat\Models;
 
+use App\Models\Property;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -63,12 +64,28 @@ class Conversation extends Model
     protected $fillable = [
         'disappearing_started_at',
         'disappearing_duration',
+        'extra_conversation_id',
+        'booking_id',
+        'title',
+        'is_closed',
+        'message_count',
+        'last_message_received_at',
+        'extra_data',
+        'extra_inserted_at',
+        'extra_updated_at',
     ];
 
     protected $casts = [
         'type' => ConversationType::class,
         'updated_at' => 'datetime',
         'disappearing_started_at' => 'datetime',
+        'extra_data' => 'array',
+    ];
+
+    protected $appends = [
+        'is_participant',
+        'unread_message_count',
+        'last_message',
     ];
 
     public function __construct(array $attributes = [])
@@ -195,7 +212,7 @@ class Conversation extends Model
             abort_if(
                 $participant->hasExited(),
                 403,
-                'Cannot add '.$user->display_name.' because they left the group.'
+                'Cannot add ' . $user->display_name . ' because they left the group.'
             );
 
             // Check if the participant was removed by an admin or owner
@@ -204,7 +221,7 @@ class Conversation extends Model
                 abort_if(
                     ! $undoAdminRemovalAction,
                     403,
-                    'Cannot add '.$user->display_name.' because they were removed from the group by an Admin.'
+                    'Cannot add ' . $user->display_name . ' because they were removed from the group by an Admin.'
                 );
 
                 // If undoAdminRemovalAction is true, remove admin removal actions and return the participant
@@ -257,6 +274,50 @@ class Conversation extends Model
     public function lastMessage(): hasOne
     {
         return $this->hasOne(Message::class, 'conversation_id')->latestOfMany();
+    }
+
+    public function getLastMessageAttribute()
+    {
+        $lastMessage = $this->lastMessage()->first();
+        if (!$lastMessage) {
+            return null;
+        }
+        if ($lastMessage->sendable_type && $lastMessage->sendable_id) {
+            $columnsToSelect = [];
+            switch ($lastMessage->sendable_type) {
+                case config('wirechat.user_model'):
+                    $columnsToSelect = ['id', 'name'];
+                    break;
+                case config('wirechat.property_model'):
+                    $columnsToSelect = ['id', 'title'];
+                    break;
+                case config('wirechat.customer_model'):
+                    $columnsToSelect = ['id', 'name'];
+                    break;
+                default:
+                    break;
+            }
+
+            if (!empty($columnsToSelect)) {
+                $lastMessage->load(['sendable' => function ($query) use ($columnsToSelect) {
+                    $query->select($columnsToSelect);
+                }]);
+            } else {
+                $lastMessage->load('sendable');
+            }
+        }
+
+        return $lastMessage;
+    }
+
+    public function getIsParticipantAttribute(): bool
+    {
+        return $this->participant(auth()->user()) ? true : false;
+    }
+
+    public function getUnreadMessageCountAttribute(): int
+    {
+        return $this->getUnreadCountFor(auth()->user());
     }
 
     /**
@@ -387,8 +448,9 @@ class Conversation extends Model
 
         // else return participant who is not the reference
         /** @var Participant|null $peer */
-        $peer = $participants->reject(fn ($participant) => $participant->participantable_id == $reference->getKey() &&
-            $participant->participantable_type == $reference->getMorphClass()
+        $peer = $participants->reject(
+            fn($participant) => $participant->participantable_id == $reference->getKey() &&
+                $participant->participantable_type == $reference->getMorphClass()
         )->first();
 
         return $peer;
@@ -412,8 +474,9 @@ class Conversation extends Model
 
         // Check if 'participants' relationship is already loaded
         if ($this->relationLoaded('participants')) {
-            return collect($this->participants)->reject(fn ($participant) => $participant->participantable_id == $reference->getKey() &&
-                $participant->participantable_type == $reference->getMorphClass()
+            return collect($this->participants)->reject(
+                fn($participant) => $participant->participantable_id == $reference->getKey() &&
+                    $participant->participantable_type == $reference->getMorphClass()
             );
         }
 
@@ -491,15 +554,18 @@ class Conversation extends Model
      */
     public function markAsRead(?Model $user = null)
     {
-
         $user = $user ?? auth()->user();
         if ($user == null) {
-
-            return null;
-            // code...
+            return false;
         }
 
-        $this->participant($user)?->update(['conversation_read_at' => now()]);
+        $participant = $this->participant($user);
+        if (empty($participant)) {
+            $participant = $this->addParticipant($user);
+        }
+
+        $participant?->update(['conversation_read_at' => now()]);
+        return true;
     }
 
     /**
@@ -533,7 +599,6 @@ class Conversation extends Model
         if (! $participant) {
             // If the participant is not found, return an empty collection
             return new \Illuminate\Database\Eloquent\Collection;
-
         }
 
         $lastReadAt = $participant->conversation_read_at;
@@ -703,6 +768,11 @@ class Conversation extends Model
     public function group()
     {
         return $this->hasOne(Group::class, 'conversation_id');
+    }
+
+    public function isOTA(): bool
+    {
+        return $this->type == ConversationType::OTA;
     }
 
     public function isPrivate(): bool

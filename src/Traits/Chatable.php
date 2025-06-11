@@ -5,6 +5,7 @@ namespace Namu\WireChat\Traits;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Namu\WireChat\Enums\ConversationType;
@@ -131,6 +132,56 @@ trait Chatable
     }
 
     /**
+     * Creates a OTA conversation.
+     *
+     * @param  array  $conversationAttributes  The conversation attributes
+     * @return Conversation|null
+     */
+    public function createOTAConversation(array $conversationAttributes = [])
+    {
+
+        // abort if is not allowed to create new chats
+        abort_unless($this->canCreateChats(), 403, 'You do not have permission to create chats.');
+
+        $authenticatedUserId = $this->id;
+        $authenticatedUserType = $this->getMorphClass();
+
+        $existingConversationQuery = Conversation::withoutGlobalScopes()
+            ->where('type', ConversationType::OTA)
+            ->whereHas('participants', function ($query) use ($authenticatedUserId, $authenticatedUserType) {
+                $query->where('participantable_id', $authenticatedUserId)
+                    ->where('participantable_type', $authenticatedUserType);
+            }, '=', 1);
+
+        // Get the first matching conversation
+        $existingConversation = $existingConversationQuery->first();
+
+        // dd($existingConversation,$selfConversationCheck);
+
+        // If an existing conversation is found, return it
+        if ($existingConversation) {
+            return $existingConversation;
+        }
+
+        // Create a new conversation
+        $existingConversation = new Conversation;
+        $existingConversation->type = ConversationType::OTA;
+        $existingConversation->fill($conversationAttributes);
+
+        $existingConversation->save();
+
+        // Add the authenticated user as a participant
+        Participant::create([
+            'conversation_id' => $existingConversation->id,
+            'participantable_id' => $authenticatedUserId,
+            'participantable_type' => $authenticatedUserType,
+            'role' => ParticipantRole::OWNER,
+        ]);
+
+        return $existingConversation;
+    }
+
+    /**
      * Room configuration
      */
 
@@ -202,7 +253,7 @@ trait Chatable
      * @param  string  $message  - The message content to send
      * @return Message|null
      */
-    public function sendMessageTo(Model $model, string $message)
+    public function sendMessageTo(Model $model, array $messageAttributes = [], bool $notify = true)
     {
         // Check if the recipient is a model (polymorphic) and not a conversation
         if (! $model instanceof Conversation) {
@@ -225,16 +276,28 @@ trait Chatable
         // Proceed to create the message if a valid conversation is found or created
         if ($conversation) {
 
-            $createdMessage = Message::create([
-                'conversation_id' => $conversation->id,
-                'sendable_type' => $this->getMorphClass(), // Polymorphic sender type
-                'sendable_id' => $this->id, // Polymorphic sender ID
-                'body' => $message,
-            ]);
+            try {
+                $createdMessage = new Message;
+                $createdMessage->conversation_id = $conversation->id;
+                $createdMessage->extra_message_id = $messageAttributes['extra_message_id'] ?? null;
+                $createdMessage->sendable_type = $this->getMorphClass(); // Polymorphic sender type
+                $createdMessage->sendable_id = $this->id; // Polymorphic sender ID
+                $createdMessage->fill($messageAttributes);
+                if ($notify) {
+                    $createdMessage->save();
+                } else {
+                    $createdMessage->saveQuietly();
+                }
+            } catch (\Exception $e) {
+                Log::info('Save message failed: ', ['error' => $e->getMessage()]);
+                return null;
+            }
 
             // update auth participant last active
-            $participant = $conversation->participant($this);
-            $participant->update(['last_active_at' => now()]);
+            if ($conversation->type !== ConversationType::OTA) {
+                $participant = $conversation->participant($this);
+                $participant->update(['last_active_at' => now()]);
+            }
 
             // Update the conversation timestamp
             $conversation->updated_at = now();
@@ -298,6 +361,17 @@ trait Chatable
      */
     public function belongsToConversation(Conversation $conversation, bool $withoutGlobalScopes = false): bool
     {
+        if ($conversation->type === ConversationType::OTA) {
+            $propertyModel = config('wirechat.property_model', \App\Models\Property::class);
+            $userModel = config('wirechat.user_model', \App\Models\User::class);
+
+            if ($this->getMorphClass() == $propertyModel) {
+                return true;
+            }
+            if ($this->getMorphClass() == $userModel && $userModel::where('id', $this->id)->first()->can('cms.message.*')) {
+                return true;
+            }
+        }
         // Check if participants are already loaded
         if ($conversation->relationLoaded('participants')) {
             // If loaded, simply check the existing collection

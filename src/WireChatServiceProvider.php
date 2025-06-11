@@ -68,7 +68,9 @@ class WireChatServiceProvider extends ServiceProvider
         }
 
         /* Load channel routes */
-        $this->loadRoutesFrom(__DIR__.'/../routes/channels.php');
+        if (! app()->runningInConsole()) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/channels.php');
+        }
 
         // load assets
         $this->loadAssets();
