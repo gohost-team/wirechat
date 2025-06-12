@@ -312,12 +312,20 @@ class Conversation extends Model
 
     public function getIsParticipantAttribute(): bool
     {
-        return $this->participant(auth()->user()) ? true : false;
+        $user = auth()->user();
+        if ($user) {
+            return $this->participant($user) ? true : false;
+        }
+        return false;
     }
 
     public function getUnreadMessageCountAttribute(): int
     {
-        return $this->getUnreadCountFor(auth()->user());
+        $user = auth()->user();
+        if ($user) {
+            return $this->getUnreadCountFor($user);
+        }
+        return 0;
     }
 
     /**

@@ -1,6 +1,6 @@
 # **Wirechat** 🚀  
 
-Ver Gohost: 0.2.10.p2
+Ver Gohost: 0.2.10.p3
 ![Wirechat Preview](wirechat-preview.png)  
 
 **Wirechat** is a powerful Laravel Livewire chat package that brings real-time private & group communication to your application. With embeddable components, it seamlessly integrates into your project, providing a feature-rich chat experience for your users.  
