@@ -68,6 +68,7 @@ class Conversation extends Model
         'booking_id',
         'title',
         'is_closed',
+        'provider',
         'message_count',
         'last_message_received_at',
         'extra_data',
