@@ -68,7 +68,7 @@ class Attachment extends Model
      * This attribute dynamically generates the correct file URL, whether stored locally
      * or on an external disk like S3. If the file path is not set, it returns null.
      */
-    protected function url(): Attribute
+    protected function fullUrl(): Attribute
     {
         return Attribute::make(
             get: fn ($value, array $attributes) => $this->generateUrl($attributes['file_path'] ?? null)

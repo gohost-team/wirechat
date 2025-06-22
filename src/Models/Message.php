@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
@@ -78,7 +78,7 @@ class Message extends Model
         'type',
         'kept_at',
         'extra_message_id',
-        'inquiry_data',
+        'meta',
         'extra_sender',
         'extra_inserted_at',
         'extra_updated_at',
@@ -87,7 +87,7 @@ class Message extends Model
     protected $casts = [
         'type' => MessageType::class,
         'kept_at' => 'datetime',
-        'inquiry_data' => 'array',
+        'meta' => 'array',
     ];
 
     public function __construct(array $attributes = [])
@@ -157,14 +157,14 @@ class Message extends Model
         });
     }
 
-    public function attachment(): MorphOne
+    public function attachments(): MorphMany
     {
-        return $this->morphOne(Attachment::class, 'attachable');
+        return $this->morphMany(Attachment::class, 'attachable');
     }
 
     public function hasAttachment(): bool
     {
-        return $this->attachment()->exists();
+        return $this->attachments()->exists();
     }
 
     public function isAttachment(): bool
