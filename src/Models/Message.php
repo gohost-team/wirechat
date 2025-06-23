@@ -78,7 +78,7 @@ class Message extends Model
         'type',
         'kept_at',
         'extra_message_id',
-        'meta',
+        'inquiry_data',
         'extra_sender',
         'extra_inserted_at',
         'extra_updated_at',
@@ -87,7 +87,7 @@ class Message extends Model
     protected $casts = [
         'type' => MessageType::class,
         'kept_at' => 'datetime',
-        'meta' => 'array',
+        'inquiry_data' => 'array',
     ];
 
     public function __construct(array $attributes = [])

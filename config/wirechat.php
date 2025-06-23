@@ -49,7 +49,7 @@ return [
     | Specify the fully qualified class name of the OTA customer model used for OTA conversations
     |
     */
-    'ota_customer_model' => \App\Models\Customer::class,
+    'customer_model' => \App\Models\Customer::class,
 
     /*
     |--------------------------------------------------------------------------
