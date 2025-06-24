@@ -274,7 +274,7 @@ class Conversation extends Model
 
     public function lastMessage(): hasOne
     {
-        return $this->hasOne(Message::class, 'conversation_id')->orderBy('extra_inserted_at', 'asc')->oldestOfMany();
+        return $this->hasOne(Message::class, 'conversation_id')->latestOfMany('extra_inserted_at');
     }
 
     public function getLastMessageAttribute()
