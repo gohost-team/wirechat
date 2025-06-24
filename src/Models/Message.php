@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Namu\WireChat\Enums\Actions;
-use Namu\WireChat\Enums\ConversationType;
 use Namu\WireChat\Enums\MessageType;
 use Namu\WireChat\Facades\WireChat;
 use Namu\WireChat\Helpers\Helper;
@@ -127,12 +126,13 @@ class Message extends Model
 
         // listen to created
         static::created(function ($message) {
-            if ($message->conversation->type === ConversationType::OTA) {
-                app(config('wirechat.message_notification_service'))->createNotification('notifications.message_received', [
-                    'conversation' => $message->conversation,
-                    'message' => $message,
-                ]);
-            }
+            $conversation = $message->conversation;
+            
+            $conversation->update([
+                'message_count' => $conversation->message_count + 1,
+                'last_message_received_at' => now()->setTimezone('UTC')->format('Y-m-d\TH:i:s.u\Z')
+            ]);
+            
         });
 
         // listen to deleted

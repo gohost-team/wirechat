@@ -275,7 +275,6 @@ trait Chatable
 
         // Proceed to create the message if a valid conversation is found or created
         if ($conversation) {
-
             try {
                 $createdMessage = new Message;
                 $createdMessage->conversation_id = $conversation->id;
@@ -283,10 +282,13 @@ trait Chatable
                 $createdMessage->sendable_type = $this->getMorphClass(); // Polymorphic sender type
                 $createdMessage->sendable_id = $this->id; // Polymorphic sender ID
                 $createdMessage->fill($messageAttributes);
-                if ($notify) {
-                    $createdMessage->save();
-                } else {
-                    $createdMessage->saveQuietly();
+                $createdMessage->save();
+
+                if ($notify && $conversation->type === ConversationType::OTA) {
+                    app(config('wirechat.message_notification_service'))->createNotification('notifications.message_received', [
+                        'conversation' => $createdMessage->conversation,
+                        'message' => $createdMessage,
+                    ]);
                 }
             } catch (\Exception $e) {
                 Log::info('Save message failed: ', ['error' => $e->getMessage()]);
