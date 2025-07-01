@@ -161,6 +161,11 @@ class Conversation extends Model
         return $this->hasMany(Participant::class, 'conversation_id', 'id');
     }
 
+    public function systemMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'conversation_id', 'id')->where('extra_sender', 'system');
+    }
+
     /**
      * Retrieve the participant model for a given user in the conversation.
      *

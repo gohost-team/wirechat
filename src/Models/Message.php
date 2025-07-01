@@ -78,6 +78,7 @@ class Message extends Model
         'kept_at',
         'extra_message_id',
         'inquiry_data',
+        'extra_data',
         'extra_sender',
         'extra_inserted_at',
         'extra_updated_at',
@@ -87,6 +88,7 @@ class Message extends Model
         'type' => MessageType::class,
         'kept_at' => 'datetime',
         'inquiry_data' => 'array',
+        'extra_data' => 'array',
     ];
 
     public function __construct(array $attributes = [])
@@ -326,5 +328,10 @@ class Message extends Model
 
         // Use the isEmoji helper method to check if the message body contains only emojis
         return Helper::isEmoji($this->body);
+    }
+
+    public function scopeOfExtraSender($query, $type)
+    {
+        return $query->where('extra_sender', $type);
     }
 }
