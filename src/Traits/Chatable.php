@@ -146,23 +146,6 @@ trait Chatable
         $authenticatedUserId = $this->id;
         $authenticatedUserType = $this->getMorphClass();
 
-        $existingConversationQuery = Conversation::withoutGlobalScopes()
-            ->where('type', ConversationType::OTA)
-            ->whereHas('participants', function ($query) use ($authenticatedUserId, $authenticatedUserType) {
-                $query->where('participantable_id', $authenticatedUserId)
-                    ->where('participantable_type', $authenticatedUserType);
-            }, '=', 1);
-
-        // Get the first matching conversation
-        $existingConversation = $existingConversationQuery->first();
-
-        // dd($existingConversation,$selfConversationCheck);
-
-        // If an existing conversation is found, return it
-        if ($existingConversation) {
-            return $existingConversation;
-        }
-
         // Create a new conversation
         $existingConversation = new Conversation;
         $existingConversation->type = ConversationType::OTA;
